@@ -1,4 +1,5 @@
 # Caduceus
+#this script have -noEnd new argument which continuesly run the script 
 The Caduceus is a symbol of Hermes or Mercury in Greek and Roman mythology. Caduceus symbol is identified with thieves, merchants, and messengers, and Mercury is said to be a patron of thieves and outlaws
 
 Caduceus is a tool to scan IPs or CIDRs for certificates. This allows finding hidden domains, new organizations, etc.

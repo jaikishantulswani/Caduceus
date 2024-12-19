@@ -34,6 +34,7 @@ type Result struct {
 	Timeout     bool
 	Error       error
 	Certificate *CertificateInfo
+	Retry       bool  // New field to indicate if the result should be retried
 }
 
 // Stats Types

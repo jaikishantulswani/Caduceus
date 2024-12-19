@@ -37,12 +37,19 @@ func (w *Worker) run() {
 	for ip := range w.input {
 		cert, err := utils.GetSSLCert(ip, w.dialer)
 		if err != nil {
-			netErr, ok := err.(net.Error) // Type assertion to check if it is a net.Error
-			if ok && netErr.Timeout() {
-				// Specific handling for timeout
-				w.results <- types.Result{IP: ip, Hit: false, Timeout: true}
+			netErr, ok := err.(net.Error)
+			if ok {
+				if netErr.Timeout() {
+					w.results <- types.Result{IP: ip, Hit: false, Timeout: true}
+				} else if netErr.Temporary() {
+					// For temporary network errors, you might want to retry
+					w.results <- types.Result{IP: ip, Error: err, Hit: false, Timeout: false, Retry: true}
+				} else {
+					// Permanent network errors
+					w.results <- types.Result{IP: ip, Error: err, Hit: false, Timeout: false}
+				}
 			} else {
-				// General error handling
+				// Non-network related errors
 				w.results <- types.Result{IP: ip, Error: err, Hit: false, Timeout: false}
 			}
 			continue

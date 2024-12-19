@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/g0ldencybersec/Caduceus/pkg/scrape"
 	"github.com/g0ldencybersec/Caduceus/pkg/types"
@@ -23,11 +24,10 @@ func main() {
 	flag.BoolVar(&args.Help, "h", false, "Show the program usage message")
 	flag.BoolVar(&args.JsonOutput, "j", false, "print cert data as jsonl")
 	flag.BoolVar(&args.PrintWildcards, "wc", false, "print wildcards to stdout")
-	//flag.BoolVar(&args.Help, "stats", false, "Print stats at the end")
+	continuousScan := flag.Bool("noEnd", false, "Continue scanning in cycles (default: exit after one scan)")
 
 	flag.Parse()
 
-	//need at least 100
 	if args.Concurrency < 1 {
 		args.Concurrency = 100
 	}
@@ -38,28 +38,45 @@ func main() {
 		return
 	}
 
-	// If the input is '-', read from stdin
-	if args.Input == "NONE" {
-		var stdinIPs []string
-		scanner := bufio.NewScanner(os.Stdin)
-		for scanner.Scan() {
-			line := scanner.Text()
-			if line != "" {
-				stdinIPs = append(stdinIPs, line)
+	originalInput := args.Input
+	cycleCount := 1
+	
+	for {
+		fmt.Fprintf(os.Stderr, "\nStarting scan cycle #%d\n", cycleCount)
+
+		args.Input = originalInput
+
+		if args.Input == "NONE" {
+			var stdinIPs []string
+			scanner := bufio.NewScanner(os.Stdin)
+			for scanner.Scan() {
+				line := scanner.Text()
+				if line != "" {
+					stdinIPs = append(stdinIPs, line)
+				}
 			}
+
+			if err := scanner.Err(); err != nil {
+				fmt.Fprintf(os.Stderr, "Error reading from stdin: %v\n", err)
+				continue
+			}
+
+			args.Input = strings.Join(stdinIPs, ",")
 		}
 
-		// Handle any potential scanning errors
-		if err := scanner.Err(); err != nil {
-			fmt.Fprintf(os.Stderr, "Error reading from stdin: %v\n", err)
-			os.Exit(1)
+		args.Ports = strings.Split(args.PortList, ",")
+
+		scrape.RunScrape(args)
+
+		fmt.Fprintf(os.Stderr, "\nScan cycle #%d completed\n", cycleCount)
+
+		if !*continuousScan {
+			fmt.Fprintf(os.Stderr, "Scan completed. Exiting...\n")
+			return
 		}
 
-		// Join all the IPs from stdin as a single comma-separated string
-		args.Input = strings.Join(stdinIPs, ",")
+		fmt.Fprintf(os.Stderr, "Waiting before starting next cycle...\n")
+		time.Sleep(1 * time.Second)
+		cycleCount++
 	}
-
-	args.Ports = strings.Split(args.PortList, ",")
-
-	scrape.RunScrape(args)
 }
